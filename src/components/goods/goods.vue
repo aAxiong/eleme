@@ -1,17 +1,17 @@
 <template>
 <div class="goods">
-  <div class="menu-wrapper">
+  <div class="menu-wrapper" ref="menuWrapper">
     <ul>
-      <li v-for="item in goods" class="menu-item">
+      <li v-for="item in goods" class="menu-item" :class="{'current':currentIndex===$index}">
         <span class="text">
         <span v-show="item.type>0" :class="classMap[item.type]" class="icon"></span>{{item.name}}
         </span>
       </li>
     </ul>
   </div>
-  <div class="foods-wrapper">
+  <div class="foods-wrapper" ref="foodsWrapper">
     <ul>
-      <li v-for="item in goods" class="food-list">
+      <li v-for="item in goods" class="food-list food-list-hook">
         <h1 class="title">{{item.name}}</h1>
         <ul>
           <li v-for="food in item.foods" class="food-item border-1px">
@@ -22,8 +22,7 @@
               <h2 class="name">{{food.name}}</h2>
               <p class="desc">{{food.description}}</p>
               <div class="extra">
-                <span>月售{{food.sellCount}}份</span>
-                <span>好评率{{food.rating}}%</span>
+                <span class="count">月售{{food.sellCount}}份</span><span>好评率{{food.rating}}%</span>
               </div>
               <div class="price">
                 <span class="new">${{food.price}}</span>
@@ -38,6 +37,7 @@
  </div>
 </template>
 <script type="text/ecmascript-6">
+import BScroll from 'better-scroll';
     const ERR_OK = 0;
     export default{
       pro:{
@@ -47,7 +47,9 @@
       },
       data(){
         return{
-          goods:[]
+          goods:[],
+          ListHeight:[],
+          scrollY:0
         };
       },
       created(){
@@ -56,9 +58,49 @@
            response=response.body;
             if(response.errno===ERR_OK){
              this.goods=response.data;
-             console.log(this.goods);
+              this.$nextTick(() => {
+              this._initScroll();
+              this._calculateHeight();
+          });
           }
         });    
+      },
+      computed:{
+        currentIndex(){
+          for(let i =0; i<this.ListHeight.length;i++){
+            let height = this.ListHeight[i];
+            let height2 = this.ListHeight[i+1];
+            if(!height2 || (this.scrollY > height2&&this.scrollY < height2)){
+              return i;
+            }
+          }
+          return 0;
+        }
+      },
+      methods:{
+      _initScroll() {
+        this.meunScroll = new BScroll(this.$refs.menuWrapper, {
+          click: true
+        });
+
+        this.foodsScroll = new BScroll(this.$refs.foodsWrapper, {
+          click: true,
+          probeType: 3
+        });
+        this.foodsScroll.on("scroll",(pos) =>{
+          this.scrollY = Math.abs(Math.round(pos.y));
+        })
+      },
+      _calculateHeight(){
+        let foodList = this.$refs.foodsWrapper.getElementsByClassName('food-list-hook');
+        let height = 0;
+        this.ListHeight.push(height);
+        for(let i=0;i<foodList.length;i++){
+          let item =foodList[i];
+          height+=item.clientHeight;
+          this.ListHeight.push(height);
+        }
+      }
       }
     };
 </script>
@@ -82,6 +124,14 @@
           height:54px
           line-height:14px
           padding:0 12px
+          &.current
+            position :relative
+            z-index:10
+            margin-top:-1px
+            font-weight:700
+            background:#fff
+            .text
+              border-none()
           .icon
             display: inline-block
             vertical-align: top
@@ -141,9 +191,10 @@
               color:rgb(147,153,159)
             .desc
               margin-bottom:8px
+              line-height:12px
             .extra
               line-height:10px
-              &.count
+              .count
                 margin-right:12px
             .price
               font-weight:400
